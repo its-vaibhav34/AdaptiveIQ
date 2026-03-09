@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Zap, Timer, CheckCircle2, XCircle } from 'lucide-react';
@@ -8,17 +8,17 @@ import { QuizTimer } from '../components/QuizTimer';
 import { LeaderboardCard } from '../components/LeaderboardCard';
 import { Button } from '../components/UI';
 import { cn } from '../utils/constants';
+import socket from '../services/socket';
+import { useParams } from 'react-router-dom';
 
 export const GamePage = () => {
   const navigate = useNavigate();
-  const { 
-    currentQuiz, 
-    currentQuestionIndex, 
-    setCurrentQuestionIndex, 
-    status, 
-    setStatus,
+  const { code } = useParams();
+  const {
+    currentQuiz,
+    currentQuestionIndex,
+    status,
     players,
-    updatePlayerScore,
     me
   } = useGameStore();
 
@@ -30,56 +30,55 @@ export const GamePage = () => {
   const currentQuestion = currentQuiz?.questions[currentQuestionIndex];
 
   useEffect(() => {
-    if (status === 'starting') {
-      const timer = setTimeout(() => setStatus('question'), 3000);
-      return () => clearTimeout(timer);
+    if (status === 'finished') {
+      navigate('/results');
     }
-  }, [status, setStatus]);
+  }, [status, navigate]);
 
   useEffect(() => {
-    if (status === 'question' && timeLeft > 0 && !showFeedback) {
-      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (timeLeft === 0 && !showFeedback) {
-      handleAnswerSubmit(-1); // Time out
+    if (status === 'question') {
+      setTimeLeft(currentQuestion?.timeLimit || 15);
+      setSelectedAnswer(null);
+      setShowFeedback(false);
     }
-  }, [status, timeLeft, showFeedback]);
+  }, [currentQuestionIndex, status]);
 
-  const handleAnswerSubmit = (index: number) => {
+  const handleAnswerSubmit = useCallback((index: number) => {
     if (showFeedback) return;
-    
+
     setSelectedAnswer(index);
     const correct = index === currentQuestion?.correctAnswer;
     setIsCorrect(correct);
     setShowFeedback(true);
 
-    if (correct && me) {
-      // Simple score calc: base 1000 + speed bonus
-      const score = 1000 + (timeLeft * 50);
-      updatePlayerScore(me.id, score, true);
-    } else if (me) {
-      updatePlayerScore(me.id, 0, false);
-    }
+    const score = correct ? 1000 + (timeLeft * 50) : 0;
 
-    // After 3 seconds, show leaderboard
-    setTimeout(() => {
-      setStatus('leaderboard');
-    }, 3000);
-  };
+    socket.emit('submit_answer', {
+      roomCode: code,
+      playerId: me?.id,
+      score,
+      correct
+    });
+
+    // After 3 seconds, show leaderboard (only host triggers this for everyone)
+    if (me?.isHost) {
+      setTimeout(() => {
+        socket.emit('show_leaderboard', { roomCode: code });
+      }, 3000);
+    }
+  }, [showFeedback, currentQuestion, timeLeft, code, me]);
+
+  useEffect(() => {
+    if (status === 'question' && timeLeft > 0 && !showFeedback) {
+      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+      return () => clearInterval(timer);
+    } else if (timeLeft === 0 && !showFeedback && status === 'question') {
+      handleAnswerSubmit(-1); // Time out
+    }
+  }, [status, timeLeft, showFeedback, handleAnswerSubmit]);
 
   const nextQuestion = () => {
-    if (!currentQuiz) return;
-    
-    if (currentQuestionIndex < currentQuiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setTimeLeft(15);
-      setSelectedAnswer(null);
-      setShowFeedback(false);
-      setStatus('question');
-    } else {
-      setStatus('finished');
-      navigate('/results');
-    }
+    socket.emit('next_question', { roomCode: code });
   };
 
   if (status === 'starting') {
@@ -99,14 +98,14 @@ export const GamePage = () => {
 
   if (status === 'leaderboard') {
     const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-    
+
     return (
       <div className="min-h-screen bg-[#050505] p-6 flex flex-col items-center">
         <div className="w-full max-w-2xl">
           <div className="flex items-center justify-between mb-12">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter">Leaderboard</h2>
             <div className="px-4 py-2 bg-white/5 rounded-full text-xs font-bold text-white/40">
-              QUESTION {currentQuestionIndex + 1} OF {currentQuiz?.questions.length}
+              QUESTION {currentQuestionIndex + 1} OF {currentQuiz?.questions?.length ?? 0}
             </div>
           </div>
 
@@ -140,7 +139,7 @@ export const GamePage = () => {
         </div>
 
         <div className="absolute left-1/2 -translate-x-1/2">
-          <QuizTimer current={timeLeft} total={15} />
+          <QuizTimer current={timeLeft} total={currentQuestion?.timeLimit || 15} />
         </div>
 
         <div className="flex items-center gap-4">
@@ -211,7 +210,7 @@ export const GamePage = () => {
       <div className="h-2 bg-white/5 w-full">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${((currentQuestionIndex + 1) / (currentQuiz?.questions.length || 1)) * 100}%` }}
+          animate={{ width: `${((currentQuestionIndex + 1) / (currentQuiz?.questions?.length || 1)) * 100}%` }}
           className="h-full bg-indigo-500"
         />
       </div>

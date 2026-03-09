@@ -6,10 +6,11 @@ import { Button, Input, Card } from '../components/UI';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { useGameStore } from '../store/useGameStore';
 import { AVATARS } from '../utils/constants';
+import socket from '../services/socket';
 
 export const JoinPage = () => {
   const navigate = useNavigate();
-  const { setMe, setRoomCode, addPlayer } = useGameStore();
+  const { setMe, setRoomCode } = useGameStore();
   
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
@@ -29,7 +30,8 @@ export const JoinPage = () => {
     
     setMe(newPlayer);
     setRoomCode(code);
-    addPlayer(newPlayer);
+    
+    socket.emit('join_room', { roomCode: code, player: newPlayer });
     
     navigate(`/lobby/${code}`);
   };

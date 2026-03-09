@@ -53,6 +53,7 @@ interface GameState {
   removePlayer: (playerId: string) => void;
   updatePlayerReady: (playerId: string, isReady: boolean) => void;
   updatePlayerScore: (playerId: string, score: number, correct: boolean) => void;
+  syncWithRoom: (roomData: any) => void;
   resetGame: () => void;
 }
 
@@ -84,6 +85,12 @@ export const useGameStore = create<GameState>((set) => ({
   updatePlayerScore: (playerId, score, correct) => set((state) => ({
     players: state.players.map(p => p.id === playerId ? { ...p, score: p.score + score, lastAnswerCorrect: correct } : p)
   })),
+  syncWithRoom: (roomData) => set({
+    players: roomData.players,
+    status: roomData.status,
+    currentQuiz: roomData.currentQuiz,
+    currentQuestionIndex: roomData.currentQuestionIndex,
+  }),
   resetGame: () => set({
     roomCode: null,
     players: [],

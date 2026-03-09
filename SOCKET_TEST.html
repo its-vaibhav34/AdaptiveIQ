@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Connection Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #0f0;
+        }
+        .test-box {
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin: 10px 0;
+            background: #000;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #0f0;
+            color: #000;
+        }
+        .error {
+            background: #f00;
+            color: #fff;
+        }
+        .info {
+            background: #00f;
+            color: #fff;
+        }
+        button {
+            padding: 10px 20px;
+            background: #0f0;
+            color: #000;
+            border: none;
+            cursor:pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0a0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Socket.IO Connection Test</h1>
+    
+    <div class="test-box">
+        <h3>Configuration</h3>
+        <p>Backend URL: <strong>http://localhost:5001</strong></p>
+        <p>Socket.IO Path: <strong>/socket.io</strong></p>
+        <p>Frontend Port: <strong>5173</strong></p>
+    </div>
+
+    <div class="test-box">
+        <h3>Connection Status</h3>
+        <div id="status" class="status info">⏳ Loading Socket.IO client...</div>
+        <div id="details"></div>
+    </div>
+
+    <div class="test-box">
+        <button onclick="testConnection()">🔄 Test Connection</button>
+        <button onclick="testAPI()">📡 Test API</button>
+        <button onclick="clearLogs()">🗑️ Clear Logs</button>
+    </div>
+
+    <div class="test-box">
+        <h3>Logs</h3>
+        <div id="logs" style="height: 300px; overflow-y: auto; background: #000; padding: 10px; border: 1px solid #0f0;"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const logsDiv = document.getElementById('logs');
+        const statusDiv = document.getElementById('status');
+        const detailsDiv = document.getElementById('details');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#f00' : type === 'success' ? '#0f0' : '#0f0';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLogs() {
+            logsDiv.innerHTML = '';
+        }
+
+        function testAPI() {
+            log('🧪 Testing API health endpoint...', 'info');
+            fetch('http://localhost:5001/api/health')
+                .then(res => res.json())
+                .then(data => {
+                    log(`✅ API Response: ${JSON.stringify(data)}`, 'success');
+                })
+                .catch(err => {
+                    log(`❌ API Error: ${err.message}`, 'error');
+                });
+        }
+
+        function testConnection() {
+            log('🔄 Reconnecting socket...', 'info');
+            if (window.socket && window.socket.connected) {
+                window.socket.disconnect();
+            }
+            initSocket();
+        }
+
+        function initSocket() {
+            log('🔌 Initializing Socket.IO...', 'info');
+            
+            window.socket = io('http://localhost:5001', {
+                path: '/socket.io',
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 5,
+                transports: ['websocket', 'polling'],
+                autoConnect: true,
+            });
+
+            window.socket.on('connect', () => {
+                log(`✅ Socket connected! ID: ${window.socket.id}`, 'success');
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ CONNECTED (ID: ${window.socket.id})`;
+            });
+
+            window.socket.on('disconnect', () => {
+                log('❌ Socket disconnected', 'error');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ DISCONNECTED';
+            });
+
+            window.socket.on('connect_error', (error) => {
+                log(`❌ Connect Error: ${error.message || JSON.stringify(error)}`, 'error');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ CONNECTION ERROR: ${error.message}`;
+            });
+
+            window.socket.on('error', (error) => {
+                log(`❌ Socket Error: ${JSON.stringify(error)}`, 'error');
+            });
+
+            window.socket.on('connection_success', (data) => {
+                log(`✅ Server confirmation: ${JSON.stringify(data)}`, 'success');
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('📄 Page loaded', 'info');
+            log('🌐 Browser: ' + navigator.userAgent.split(' ').slice(-1)[0], 'info');
+            initSocket();
+        });
+    </script>
+</body>
+</html>

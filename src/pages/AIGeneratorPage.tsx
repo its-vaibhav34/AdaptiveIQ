@@ -6,10 +6,12 @@ import { Button, Input, Card } from '../components/UI';
 import { generateQuiz } from '../services/geminiService';
 import { useGameStore } from '../store/useGameStore';
 import { cn } from '../utils/constants';
+import socket from '../services/socket';
+import { AVATARS } from '../utils/constants';
 
 export const AIGeneratorPage = () => {
   const navigate = useNavigate();
-  const { setCurrentQuiz, setRoomCode, setStatus } = useGameStore();
+  const { setCurrentQuiz, setRoomCode, setMe } = useGameStore();
   
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState(5);
@@ -25,8 +27,21 @@ export const AIGeneratorPage = () => {
       
       // Auto-host a game with this quiz
       const code = Math.random().toString(36).substr(2, 6).toUpperCase();
+      const hostPlayer = {
+        id: Math.random().toString(36).substr(2, 9),
+        username: 'Host_AI',
+        avatar: AVATARS[0],
+        score: 0,
+        isReady: true,
+        isHost: true,
+      };
+
+      setMe(hostPlayer);
       setRoomCode(code);
-      setStatus('lobby');
+      
+      socket.emit('join_room', { roomCode: code, player: hostPlayer });
+      socket.emit('set_quiz', { roomCode: code, quiz });
+      
       navigate(`/lobby/${code}`);
     } catch (error) {
       console.error('Failed to generate quiz:', error);

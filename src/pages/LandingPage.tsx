@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, 
-  PlusCircle, 
-  BrainCircuit, 
-  Trophy, 
-  Zap, 
-  ArrowLeft, 
-  Sparkles, 
-  Cpu, 
-  Gamepad2, 
-  Sword, 
-  Target, 
-  Shield, 
+import {
+  Users,
+  PlusCircle,
+  BrainCircuit,
+  Trophy,
+  Zap,
+  ArrowLeft,
+  Sparkles,
+  Cpu,
+  Gamepad2,
+  Sword,
+  Target,
+  Shield,
   Activity,
   ChevronRight,
   UserPlus,
@@ -24,25 +24,22 @@ import { Button, Input, Card } from '../components/UI';
 import { ParticleBackground } from '../components/ParticleBackground';
 import { AVATARS, cn } from '../utils/constants';
 import { useGameStore } from '../store/useGameStore';
+import socket from '../services/socket';
 
 // --- Sub-components ---
 
 const LiveActivity = () => {
-  const [activities, setActivities] = useState([
-    { id: 1, text: "Player Neon_Ninja joined Room 4721", icon: UserPlus, color: "text-indigo-400" },
-    { id: 2, text: "Quiz started in Science Arena", icon: Gamepad2, color: "text-emerald-400" },
-    { id: 3, text: "Player Alex_Pro reached Rank #1", icon: Trophy, color: "text-yellow-400" },
-  ]);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const names = ["Zoe", "Max", "Luna", "Cipher", "Vortex", "Nova"];
       const rooms = ["1024", "8899", "4422", "7711"];
       const arenas = ["History", "Tech", "Space", "Music"];
-      
+
       const newActivity = {
         id: Date.now(),
-        text: Math.random() > 0.5 
+        text: Math.random() > 0.5
           ? `Player ${names[Math.floor(Math.random() * names.length)]} joined Room ${rooms[Math.floor(Math.random() * rooms.length)]}`
           : `New battle started in ${arenas[Math.floor(Math.random() * arenas.length)]} Arena`,
         icon: Math.random() > 0.5 ? UserPlus : Sword,
@@ -79,16 +76,16 @@ const LiveActivity = () => {
 const FloatingAvatar = ({ delay, x, y, username, score, rank, avatar }: any) => (
   <motion.div
     initial={{ opacity: 0 }}
-    animate={{ 
+    animate={{
       opacity: 1,
       y: [y, y - 30, y],
       x: [x, x + 20, x]
     }}
-    transition={{ 
-      duration: 6 + Math.random() * 4, 
-      repeat: Infinity, 
+    transition={{
+      duration: 6 + Math.random() * 4,
+      repeat: Infinity,
       ease: "easeInOut",
-      delay 
+      delay
     }}
     className="absolute z-10 hidden md:block"
     style={{ left: x, top: y }}
@@ -148,8 +145,9 @@ const GameModeCard = ({ icon: Icon, title, desc, color }: any) => (
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const { setMe, setRoomCode } = useGameStore();
   const [showHostOptions, setShowHostOptions] = useState(false);
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCodeInput] = useState('');
   const [username, setUsername] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -160,6 +158,24 @@ export const LandingPage = () => {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  const handleJoin = () => {
+    if (!username || !roomCode) return;
+
+    const newPlayer = {
+      id: Math.random().toString(36).substr(2, 9),
+      username,
+      avatar: AVATARS[0],
+      score: 0,
+      isReady: false,
+      isHost: false,
+    };
+
+    setMe(newPlayer);
+    setRoomCode(roomCode);
+    socket.emit('join_room', { roomCode, player: newPlayer });
+    navigate(`/lobby/${roomCode}`);
+  };
 
   const floatingAvatars = useMemo(() => [
     { username: "Neon_Ninja", score: 4500, rank: 1, avatar: AVATARS[0], x: "10%", y: "20%" },
@@ -175,7 +191,7 @@ export const LandingPage = () => {
       <LiveActivity />
 
       {/* Cursor Glow */}
-      <div 
+      <div
         className="fixed pointer-events-none z-50 w-[400px] h-[400px] rounded-full bg-indigo-600/10 blur-[100px] -translate-x-1/2 -translate-y-1/2 transition-transform duration-100"
         style={{ left: mousePos.x, top: mousePos.y }}
       />
@@ -188,12 +204,12 @@ export const LandingPage = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20">
         {/* Animated Grid */}
-        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
-          style={{ 
+        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+          style={{
             backgroundImage: `linear-gradient(to right, #4f46e5 1px, transparent 1px), linear-gradient(to bottom, #4f46e5 1px, transparent 1px)`,
             backgroundSize: '60px 60px',
             transform: `perspective(1000px) rotateX(60deg) translateY(${mousePos.y * 0.02}px)`
-          }} 
+          }}
         />
 
         <motion.div
@@ -202,7 +218,7 @@ export const LandingPage = () => {
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           className="relative z-10 text-center mb-16"
         >
-          <motion.div 
+          <motion.div
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 4, repeat: Infinity }}
             className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-[0.3em] mb-8 shadow-[0_0_30px_rgba(99,102,241,0.3)]"
@@ -210,10 +226,10 @@ export const LandingPage = () => {
             <Activity size={14} className="animate-pulse" />
             <span>Real-Time Multiplayer Quiz Battles</span>
           </motion.div>
-          
+
           <h1 className="text-8xl md:text-[12rem] font-black tracking-tighter mb-4 leading-none select-none italic">
             <span className="bg-gradient-to-b from-white via-white to-indigo-500/50 bg-clip-text text-transparent">Adaptive</span>
-            <motion.span 
+            <motion.span
               animate={{ opacity: [1, 0.8, 1], scale: [1, 1.02, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
               className="text-indigo-500 drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]"
@@ -221,7 +237,7 @@ export const LandingPage = () => {
               IQ
             </motion.span>
           </h1>
-          
+
           <p className="text-lg md:text-2xl text-white/40 max-w-2xl mx-auto font-medium tracking-tight">
             Enter the arena. Outsmart the competition. <br />
             <span className="text-white/80">The ultimate AI-powered battleground.</span>
@@ -265,8 +281,8 @@ export const LandingPage = () => {
                   <div className="flex-1 w-full space-y-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Username</label>
-                      <Input 
-                        placeholder="PLAYER_NAME" 
+                      <Input
+                        placeholder="PLAYER_NAME"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="!bg-black/40 !border-white/5 !rounded-2xl font-black italic text-indigo-400 placeholder:text-white/10"
@@ -274,10 +290,10 @@ export const LandingPage = () => {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Room Code</label>
-                      <Input 
-                        placeholder="000000" 
+                      <Input
+                        placeholder="000000"
                         value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                        onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                         className="!bg-black/40 !border-white/5 !rounded-2xl font-black tracking-[0.5em] text-center placeholder:text-white/10"
                         maxLength={6}
                       />
@@ -294,16 +310,17 @@ export const LandingPage = () => {
                       exit={{ opacity: 0, y: -10 }}
                       className="flex flex-col gap-3"
                     >
-                      <Button 
-                        size="xl" 
-                        onClick={() => navigate('/join')}
+                      <Button
+                        size="xl"
+                        onClick={handleJoin}
+                        disabled={!username || !roomCode}
                         className="w-full !rounded-2xl bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_30px_rgba(79,70,229,0.4)] group"
                       >
                         <Sword size={20} className="group-hover:rotate-12 transition-transform" />
                         Join Battle
                       </Button>
-                      <Button 
-                        size="xl" 
+                      <Button
+                        size="xl"
                         variant="ghost"
                         onClick={() => setShowHostOptions(true)}
                         className="w-full !rounded-2xl border border-white/5 hover:bg-white/5"
@@ -320,16 +337,16 @@ export const LandingPage = () => {
                       className="space-y-4"
                     >
                       <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="!rounded-2xl h-24 flex-col gap-2 border-white/10 hover:bg-white/5"
                           onClick={() => navigate('/create')}
                         >
                           <PlusCircle size={24} className="text-indigo-400" />
                           <span className="text-xs font-black uppercase italic">Manual</span>
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="!rounded-2xl h-24 flex-col gap-2 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10"
                           onClick={() => navigate('/ai-generate')}
                         >
@@ -337,7 +354,7 @@ export const LandingPage = () => {
                           <span className="text-xs font-black uppercase italic">AI Generate</span>
                         </Button>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setShowHostOptions(false)}
                         className="w-full flex items-center justify-center gap-2 text-white/30 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest"
                       >
@@ -362,22 +379,22 @@ export const LandingPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <GameModeCard 
-            icon={Zap} 
-            title="Classic Quiz" 
-            desc="The traditional battle. Fast-paced questions, instant leaderboard updates." 
+          <GameModeCard
+            icon={Zap}
+            title="Classic Quiz"
+            desc="The traditional battle. Fast-paced questions, instant leaderboard updates."
             color="indigo"
           />
-          <GameModeCard 
-            icon={Sword} 
-            title="Battle Mode" 
-            desc="1v1 or team-based combat. Use power-ups to disrupt your opponents." 
+          <GameModeCard
+            icon={Sword}
+            title="Battle Mode"
+            desc="1v1 or team-based combat. Use power-ups to disrupt your opponents."
             color="pink"
           />
-          <GameModeCard 
-            icon={BrainCircuit} 
-            title="AI Adaptive" 
-            desc="The quiz evolves with you. Questions get harder as you perform better." 
+          <GameModeCard
+            icon={BrainCircuit}
+            title="AI Adaptive"
+            desc="The quiz evolves with you. Questions get harder as you perform better."
             color="emerald"
           />
         </div>
@@ -386,22 +403,22 @@ export const LandingPage = () => {
       {/* Features Section */}
       <section className="py-32 px-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <FeatureCard 
-            icon={Shield} 
-            title="Adaptive Difficulty" 
-            desc="Our neural engine analyzes your performance in real-time to keep the challenge perfectly balanced." 
+          <FeatureCard
+            icon={Shield}
+            title="Adaptive Difficulty"
+            desc="Our neural engine analyzes your performance in real-time to keep the challenge perfectly balanced."
             delay={0.1}
           />
-          <FeatureCard 
-            icon={BrainCircuit} 
-            title="AI Quiz Generator" 
-            desc="Generate infinite quizzes on any topic instantly using the power of Gemini AI." 
+          <FeatureCard
+            icon={BrainCircuit}
+            title="AI Quiz Generator"
+            desc="Generate infinite quizzes on any topic instantly using the power of Gemini AI."
             delay={0.2}
           />
-          <FeatureCard 
-            icon={Users} 
-            title="Multiplayer Battles" 
-            desc="Compete with up to 100 players in a single room with zero latency and real-time ranking." 
+          <FeatureCard
+            icon={Users}
+            title="Multiplayer Battles"
+            desc="Compete with up to 100 players in a single room with zero latency and real-time ranking."
             delay={0.3}
           />
         </div>
@@ -416,7 +433,7 @@ export const LandingPage = () => {
           className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[40px] p-12 relative overflow-hidden"
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
-          
+
           <div className="flex items-center justify-center gap-3 mb-12">
             <Trophy className="text-yellow-500" size={32} />
             <h2 className="text-4xl font-black italic uppercase tracking-tighter">Hall of Fame</h2>
@@ -483,5 +500,3 @@ export const LandingPage = () => {
     </div>
   );
 };
-
-

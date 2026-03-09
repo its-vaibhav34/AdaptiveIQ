@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button, Input, Card } from '../components/UI';
-import { useGameStore, Question } from '../store/useGameStore';
+import { useGameStore, Question, Player } from '../store/useGameStore';
+import socket from '../services/socket';
+import { AVATARS } from '../utils/constants';
 
 export const CreateQuizPage = () => {
   const navigate = useNavigate();
-  const { setCurrentQuiz, setRoomCode, setStatus } = useGameStore();
+  const { setCurrentQuiz, setRoomCode, setMe } = useGameStore();
 
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('General');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
   const [questions, setQuestions] = useState<Partial<Question>[]>([
     { text: '', options: ['', '', '', ''], correctAnswer: 0, timeLimit: 15 }
@@ -36,7 +38,7 @@ export const CreateQuizPage = () => {
     setQuestions(newQuestions);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title || questions.some(q => !q.text || q.options?.some(o => !o))) {
       alert('Please fill in all fields');
       return;
@@ -50,10 +52,35 @@ export const CreateQuizPage = () => {
       questions: questions as Question[]
     };
 
+    // Save to MongoDB via API
+    try {
+      await fetch('/api/quizzes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quiz),
+      });
+    } catch (err) {
+      console.warn('Could not save quiz to backend:', err);
+    }
+
     setCurrentQuiz(quiz);
     const code = Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    const hostPlayer: Player = {
+      id: Math.random().toString(36).substr(2, 9),
+      username: 'Host_Master',
+      avatar: AVATARS[0],
+      score: 0,
+      isReady: true,
+      isHost: true,
+    };
+
+    setMe(hostPlayer);
     setRoomCode(code);
-    setStatus('lobby');
+
+    socket.emit('join_room', { roomCode: code, player: hostPlayer });
+    socket.emit('set_quiz', { roomCode: code, quiz });
+
     navigate(`/lobby/${code}`);
   };
 
@@ -80,13 +107,22 @@ export const CreateQuizPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <div className="md:col-span-2">
+          <div className="md:col-span-1">
             <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Quiz Title</label>
             <Input
               placeholder="Enter a catchy title..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-xl font-bold py-4"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Category</label>
+            <Input
+              placeholder="e.g. Science, History..."
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="py-4"
             />
           </div>
           <div>
@@ -140,11 +176,10 @@ export const CreateQuizPage = () => {
                       <div key={oIndex} className="flex items-center gap-3">
                         <button
                           onClick={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                            q.correctAnswer === oIndex
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${q.correctAnswer === oIndex
                               ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                               : 'bg-white/5 text-white/20 hover:bg-white/10'
-                          }`}
+                            }`}
                         >
                           {q.correctAnswer === oIndex ? <Save size={16} /> : <HelpCircle size={16} />}
                         </button>

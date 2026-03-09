@@ -6,28 +6,35 @@ import { Button, Card } from '../components/UI';
 import { PlayerCard } from '../components/PlayerCard';
 import { useGameStore } from '../store/useGameStore';
 import { MOCK_QUIZ } from '../utils/constants';
+import socket from '../services/socket';
 
 export const LobbyPage = () => {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { players, me, setStatus, setCurrentQuiz, currentQuiz } = useGameStore();
-  
+  const { players, me, setStatus, setCurrentQuiz, currentQuiz, status } = useGameStore();
+
   // Set default quiz if none
   useEffect(() => {
-    if (!currentQuiz) {
+    if (!currentQuiz && me?.isHost) {
       setCurrentQuiz(MOCK_QUIZ as any);
+      socket.emit('set_quiz', { roomCode: code, quiz: MOCK_QUIZ });
     }
-  }, [currentQuiz, setCurrentQuiz]);
+  }, [currentQuiz, setCurrentQuiz, me, code]);
+
+  useEffect(() => {
+    if (status === 'starting' || status === 'question') {
+      navigate(`/game/${code}`);
+    }
+  }, [status, navigate, code]);
 
   const handleStart = () => {
-    setStatus('starting');
-    navigate(`/game/${code}`);
+    socket.emit('start_game', { roomCode: code });
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
+
         {/* Left Sidebar: Quiz Info */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="p-6">
@@ -49,7 +56,7 @@ export const LobbyPage = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/40">Questions</span>
-                <span className="font-bold">{currentQuiz?.questions.length}</span>
+                <span className="font-bold">{currentQuiz?.questions?.length ?? 0}</span>
               </div>
             </div>
           </Card>
@@ -103,7 +110,7 @@ export const LobbyPage = () => {
             </div>
             <h4 className="text-3xl font-black mb-2">{players.length}</h4>
             <p className="text-white/40 text-sm mb-8">Players Joined</p>
-            
+
             <Button
               size="lg"
               className="w-full mb-4"
