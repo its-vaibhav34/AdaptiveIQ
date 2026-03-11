@@ -412,7 +412,7 @@ export const LandingPage = () => {
           <FeatureCard
             icon={BrainCircuit}
             title="AI Quiz Generator"
-            desc="Generate infinite quizzes on any topic instantly using the power of Gemini AI."
+            desc="Generate infinite quizzes on any topic instantly using the power of Groq AI."
             delay={0.2}
           />
           <FeatureCard

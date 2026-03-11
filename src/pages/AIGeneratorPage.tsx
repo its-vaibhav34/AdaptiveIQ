@@ -68,7 +68,7 @@ export const AIGeneratorPage = () => {
           </div>
           <div>
             <h2 className="text-4xl font-black italic uppercase tracking-tighter">AI Quiz Generator</h2>
-            <p className="text-white/40">Powered by Gemini AI</p>
+            <p className="text-white/40">Powered by Groq AI</p>
           </div>
         </div>
 
@@ -86,20 +86,15 @@ export const AIGeneratorPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Number of Questions</label>
-              <div className="flex gap-2">
-                {[5, 10, 15, 20].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setCount(n)}
-                    className={cn(
-                      "flex-1 py-3 rounded-xl font-bold border transition-all",
-                      count === n ? "bg-indigo-500 border-indigo-500 text-white" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                    )}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+              <Input
+                type="number"
+                min="1"
+                max="50"
+                placeholder="Enter number of questions"
+                value={count}
+                onChange={(e) => setCount(Math.max(1, parseInt(e.target.value) || 5))}
+                className="text-xl font-bold py-4"
+              />
             </div>
 
             <div>

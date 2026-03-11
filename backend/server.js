@@ -4,7 +4,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import mongoose from 'mongoose';
-import { GoogleGenAI, Type } from '@google/genai';
+import Groq from 'groq-sdk';
 
 dotenv.config();
 
@@ -60,12 +60,12 @@ const Quiz = mongoose.model('Quiz', QuizSchema);
 const GameSession = mongoose.model('GameSession', GameSessionSchema);
 
 // ============================================================
-// Gemini AI (lazy initialization)
+// Groq AI (lazy initialization)
 // ============================================================
 function getAI() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY not set in .env');
-  return new GoogleGenAI({ apiKey: key });
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY not set in .env');
+  return new Groq({ apiKey: key });
 }
 
 // ============================================================
@@ -158,37 +158,40 @@ app.post('/api/quizzes/generate', async (req, res) => {
 
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: `Generate a quiz about "${topic}" with ${count || 5} questions at ${difficulty || 'Medium'} difficulty level. Each question must have exactly 4 options.`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            category: { type: Type.STRING },
-            difficulty: { type: Type.STRING },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  text: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  correctAnswer: { type: Type.INTEGER, description: 'Index of the correct answer (0-3)' },
-                  timeLimit: { type: Type.INTEGER, description: 'Time limit in seconds (10-30)' },
-                },
-                required: ['text', 'options', 'correctAnswer', 'timeLimit'],
-              },
-            },
-          },
-          required: ['title', 'category', 'difficulty', 'questions'],
+    const prompt = `Generate a quiz about "${topic}" with ${count || 5} questions at ${difficulty || 'Medium'} difficulty level. Each question must have exactly 4 options.
+
+Return the response as valid JSON with this structure:
+{
+  "title": "Quiz Title",
+  "category": "${topic}",
+  "difficulty": "${difficulty || 'Medium'}",
+  "questions": [
+    {
+      "text": "Question text?",
+      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+      "correctAnswer": 0,
+      "timeLimit": 15
+    }
+  ]
+}
+
+Ensure all questions have exactly 4 options and correctAnswer is 0-3.`;
+
+    const response = await ai.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
         },
-      },
+      ],
+      max_tokens: 2048,
+      temperature: 1,
     });
 
-    const quizData = JSON.parse(response.text || '{}');
+    const content = response.choices[0]?.message?.content || '';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const quizData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
 
     // Save AI-generated quiz to MongoDB
     try {
@@ -375,6 +378,6 @@ connectDB().then(() => {
     console.log(`🚀 Backend running on http://localhost:${PORT}`);
     console.log(`✅ Listening on all interfaces - http://0.0.0.0:${PORT}`);
     console.log(`📡 Socket.io ready for connections`);
-    console.log(`🔑 Gemini API: ${process.env.GEMINI_API_KEY ? 'configured' : 'NOT configured (AI generation disabled)'}`);
+    console.log(`🔑 Groq API: ${process.env.GROQ_API_KEY ? 'configured' : 'NOT configured (AI generation disabled)'}`);
   });
 });

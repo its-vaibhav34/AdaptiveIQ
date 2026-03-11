@@ -176,7 +176,7 @@ async function startServer() {
 
     try {
       const response = await getAI().models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "llama-3.1-8b-instant",
         contents: `Generate a quiz about "${topic}" with ${count || 5} questions at ${difficulty || "Medium"} difficulty level. Each question must have exactly 4 options.`,
         config: {
           responseMimeType: "application/json",
