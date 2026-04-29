@@ -32,6 +32,18 @@ const QuizSchema = new mongoose.Schema(
         message: 'Quiz must have at least one question',
       },
     },
+    createdBy: {
+      type: String,
+      default: 'system',
+    },
+    isPublished: {
+      type: Boolean,
+      default: true,
+    },
+    playCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

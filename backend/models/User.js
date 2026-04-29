@@ -49,6 +49,29 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // User Statistics
+    totalGamesPlayed: {
+      type: Number,
+      default: 0,
+    },
+    totalScore: {
+      type: Number,
+      default: 0,
+    },
+    bestScore: {
+      type: Number,
+      default: 0,
+    },
+    gamesWon: {
+      type: Number,
+      default: 0,
+    },
+    accuracy: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
   },
   {
     timestamps: true,
