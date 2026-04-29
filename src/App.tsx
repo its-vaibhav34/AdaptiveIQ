@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
 import { JoinPage } from './pages/JoinPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { GamePage } from './pages/GamePage';
@@ -10,6 +11,8 @@ import { CreateQuizPage } from './pages/CreateQuizPage';
 import { AIGeneratorPage } from './pages/AIGeneratorPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { useGameStore } from './store/useGameStore';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
 import socket from './services/socket';
 
 const AnimatedRoutes = () => {
@@ -29,7 +32,19 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+
+
+        {/* Game routes - can be public or require auth based on your needs */}
         <Route path="/join" element={<JoinPage />} />
         <Route path="/lobby/:code" element={<LobbyPage />} />
         <Route path="/game/:code" element={<GamePage />} />
@@ -44,8 +59,10 @@ const AnimatedRoutes = () => {
 
 export default function App() {
   return (
-    <Router>
-      <AnimatedRoutes />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AnimatedRoutes />
+      </Router>
+    </AuthProvider>
   );
 }
