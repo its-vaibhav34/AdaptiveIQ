@@ -54,15 +54,6 @@ export async function signup(req, res, next) {
     // Generate token
     const token = generateToken(user._id.toString());
 
-    // Set secure session cookie
-    res.cookie('authToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/',
-    });
-
     console.log(`✅ New user registered: ${username} (${email})`);
 
     res.status(201).json({
@@ -122,15 +113,6 @@ export async function login(req, res, next) {
     user.lastLogin = new Date();
     await user.save();
 
-    // Set secure session cookie
-    res.cookie('authToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/',
-    });
-
     console.log(`✅ User logged in: ${email}`);
 
     res.json({
@@ -145,16 +127,9 @@ export async function login(req, res, next) {
 
 /**
  * POST /api/auth/logout
- * Clear session and invalidate token (client-side removal recommended)
+ * Clear authentication (client-side token removal recommended)
  */
 export function logout(req, res) {
-  res.clearCookie('authToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
-
   console.log(`✅ User logged out: ${req.user?.email || 'unknown'}`);
 
   res.json({

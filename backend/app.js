@@ -1,25 +1,25 @@
 import express from 'express';
-import cookieParser from 'cookie-parser';
 import { corsMiddleware } from './middleware/cors.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import { authenticate } from './middleware/authMiddleware.js';
-import { createSessionMiddleware } from './config/session.js';
 import apiRouter from './routes/index.js';
 
 /**
  * Factory function that creates and configures the Express app.
  * Separated from server.js so it can be tested in isolation.
  * 
+ * Authentication: JWT-based (stateless)
+ * - Token sent via Authorization header: Bearer <token>
+ * - No sessions or cookies used
+ * 
  * Middleware Order (important):
  * 1. CORS - Allow cross-origin requests
  * 2. Body parsers - Parse JSON/URL-encoded bodies
- * 3. Cookie parser - Parse cookies
- * 4. Session - Session management
- * 5. Request logger - Log HTTP requests
- * 6. Authentication - Verify JWT tokens
- * 7. Routes - Handle requests
- * 8. Error handlers - Catch errors (must be last)
+ * 3. Request logger - Log HTTP requests
+ * 4. Authentication - Verify JWT tokens
+ * 5. Routes - Handle requests
+ * 6. Error handlers - Catch errors (must be last)
  */
 export function createApp() {
   const app = express();
@@ -34,12 +34,6 @@ export function createApp() {
   // Body parsing middleware
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));
-
-  // Cookie parsing middleware - parse cookies into req.cookies
-  app.use(cookieParser());
-
-  // Session middleware - persistent sessions with MongoDB
-  app.use(createSessionMiddleware());
 
   // Request logging middleware - log all HTTP requests
   app.use(requestLogger);
