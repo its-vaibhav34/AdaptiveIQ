@@ -95,7 +95,31 @@ async function startServer() {
     },
   });
 
-  app.use(cors());
+  // Configure CORS to allow the frontend origin (and localhost for dev)
+  const allowedOrigins = [
+    'https://adaptive-iq-u83e.vercel.app',
+    'https://adaptiveiq.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ];
+
+  const corsOptions = {
+    origin: (origin: any, callback: any) => {
+      // Allow requests with no origin (like server-to-server or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error('CORS policy: Origin not allowed'), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200,
+  } as any;
+
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
   app.use(express.json());
 
   // Connect to MongoDB
