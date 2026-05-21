@@ -6,11 +6,22 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'https://adaptive-iq-u83e.vercel.app',
+  'https://adaptiveiq.onrender.com',
 ];
 
 // Add CLIENT_URL from env if provided (for production deployments)
 if (process.env.CLIENT_URL) {
   ALLOWED_ORIGINS.push(process.env.CLIENT_URL);
+}
+
+// Common frontend env var names used by hosting providers
+if (process.env.FRONTEND_URL) {
+  ALLOWED_ORIGINS.push(process.env.FRONTEND_URL);
+}
+
+if (process.env.VERCEL_URL) {
+  ALLOWED_ORIGINS.push(`https://${process.env.VERCEL_URL}`);
 }
 
 export const corsMiddleware = cors({
