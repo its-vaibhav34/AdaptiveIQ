@@ -2,8 +2,9 @@
  * Authentication Service
  * Handles all auth-related API calls and token management
  */
+import { getBackendOrigin } from './config';
 
-const API_URL = 'http://localhost:5001/api/auth';
+const API_URL = `${getBackendOrigin()}/api/auth`;
 
 export interface User {
   _id: string;

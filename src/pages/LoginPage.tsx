@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Card } from '../components/UI';
 import { ParticleBackground } from '../components/ParticleBackground';
+import { getBackendOrigin } from '../services/config';
 
 type AuthMode = 'login' | 'signup';
 
@@ -135,7 +136,7 @@ export const LoginPage = () => {
               fullName: formData.fullName || undefined,
             };
 
-      const response = await fetch(`http://localhost:5001${endpoint}`, {
+      const response = await fetch(`${getBackendOrigin()}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

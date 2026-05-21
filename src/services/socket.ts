@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
+import { getBackendOrigin } from './config';
 
-const BACKEND_URL = "http://localhost:5001";
+const BACKEND_URL = getBackendOrigin();
 
 const socket = io(BACKEND_URL, {
     path: "/socket.io",
