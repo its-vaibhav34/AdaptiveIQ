@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Hash } from 'lucide-react';
 import { Button, Input, Card } from '../components/UI';
 import { AvatarPicker } from '../components/AvatarPicker';
@@ -10,11 +10,21 @@ import socket from '../services/socket';
 
 export const JoinPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setMe, setRoomCode } = useGameStore();
   
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
   const [code, setCode] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const inviteCode = params.get('code');
+
+    if (inviteCode) {
+      setCode(inviteCode.toUpperCase());
+    }
+  }, [location.search]);
 
   const handleJoin = () => {
     if (!username || !code) return;
@@ -53,6 +63,7 @@ export const JoinPage = () => {
 
         <Card className="p-10">
           <h2 className="text-4xl font-black italic mb-8 uppercase tracking-tighter">Join the Battle</h2>
+          <p className="text-white/40 mb-8">Scan the QR code or enter the room code to join from any device.</p>
           
           <div className="space-y-8">
             <div>

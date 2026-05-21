@@ -9,8 +9,10 @@ import { useGameStore } from '../store/useGameStore';
 export const ResultsPage = () => {
   const navigate = useNavigate();
   const { players, resetGame } = useGameStore();
-  
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const contestants = players.filter((player) => !player.isHost);
+  const finalPlayers = contestants.length > 0 ? contestants : players;
+
+  const sortedPlayers = [...finalPlayers].sort((a, b) => b.score - a.score);
   const top3 = sortedPlayers.slice(0, 3);
   const rest = sortedPlayers.slice(3);
 

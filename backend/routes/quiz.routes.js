@@ -62,6 +62,34 @@ router.post('/', async (req, res, next) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// PUT /api/quizzes/:id  ← Update quiz manually
+// ─────────────────────────────────────────────────────────────
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { title, category, difficulty, questions } = req.body;
+
+    if (!title || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: 'title and at least one question are required' });
+    }
+
+    const updatedQuiz = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      { title, category, difficulty, questions },
+      { new: true, runValidators: true }
+    ).select('-__v');
+
+    if (!updatedQuiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    console.log(`✅ Quiz updated: "${updatedQuiz.title}" (${updatedQuiz.questions.length} questions)`);
+    res.json(updatedQuiz);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/quizzes  ← List all quizzes
 // ─────────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {

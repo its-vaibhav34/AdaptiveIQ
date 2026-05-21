@@ -21,6 +21,17 @@ const AnimatedRoutes = () => {
 
   useEffect(() => {
     socket.on('room_update', (roomData) => {
+      // Debug: log incoming room updates to diagnose reveal issues
+      try {
+        const summary = {
+          code: roomData.code,
+          status: roomData.status,
+          players: (roomData.players || []).map(p => ({ id: p.id, username: p.username, lastAnswerCorrect: p.lastAnswerCorrect }))
+        };
+        console.debug('socket: room_update', summary);
+      } catch (e) {
+        console.debug('socket: room_update (unable to summarize)', roomData);
+      }
       syncWithRoom(roomData);
     });
 

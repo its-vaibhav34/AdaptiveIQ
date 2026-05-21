@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button, Input, Card } from '../components/UI';
-import { useGameStore, Question, Player } from '../store/useGameStore';
+import { useGameStore, Question, Player, Quiz } from '../store/useGameStore';
 import socket from '../services/socket';
 import { AVATARS } from '../utils/constants';
 
 export const CreateQuizPage = () => {
   const navigate = useNavigate();
-  const { setCurrentQuiz, setRoomCode, setMe } = useGameStore();
+  const { setCurrentQuiz, setRoomCode, setMe, currentQuiz, roomCode, me } = useGameStore();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('General');
@@ -17,6 +17,23 @@ export const CreateQuizPage = () => {
   const [questions, setQuestions] = useState<Partial<Question>[]>([
     { text: '', options: ['', '', '', ''], correctAnswer: 0, timeLimit: 15 }
   ]);
+
+  useEffect(() => {
+    if (!currentQuiz) return;
+
+    setTitle(currentQuiz.title);
+    setCategory(currentQuiz.category);
+    setDifficulty(currentQuiz.difficulty);
+    setQuestions(
+      currentQuiz.questions.map((question) => ({
+        id: question.id,
+        text: question.text,
+        options: [...question.options],
+        correctAnswer: question.correctAnswer,
+        timeLimit: question.timeLimit,
+      }))
+    );
+  }, [currentQuiz]);
 
   const addQuestion = () => {
     setQuestions([...questions, { text: '', options: ['', '', '', ''], correctAnswer: 0, timeLimit: 15 }]);
@@ -52,36 +69,48 @@ export const CreateQuizPage = () => {
       questions: questions as Question[]
     };
 
-    // Save to MongoDB via API
+    const hostPlayer: Player = me?.isHost
+      ? {
+          ...me,
+          isHost: true,
+          isReady: true,
+        }
+      : {
+          id: Math.random().toString(36).substr(2, 9),
+          username: 'Host_Master',
+          avatar: AVATARS[0],
+          score: 0,
+          isReady: true,
+          isHost: true,
+        };
+
+    const activeRoomCode = roomCode || Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    let savedQuiz = quiz as Quiz;
+
     try {
-      await fetch('/api/quizzes', {
-        method: 'POST',
+      const response = await fetch(currentQuiz?._id ? `/api/quizzes/${currentQuiz._id}` : '/api/quizzes', {
+        method: currentQuiz?._id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(quiz),
       });
+
+      if (response.ok) {
+        savedQuiz = await response.json();
+      }
     } catch (err) {
       console.warn('Could not save quiz to backend:', err);
     }
 
-    setCurrentQuiz(quiz);
-    const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-
-    const hostPlayer: Player = {
-      id: Math.random().toString(36).substr(2, 9),
-      username: 'Host_Master',
-      avatar: AVATARS[0],
-      score: 0,
-      isReady: true,
-      isHost: true,
-    };
+    setCurrentQuiz(savedQuiz);
 
     setMe(hostPlayer);
-    setRoomCode(code);
+    setRoomCode(activeRoomCode);
 
-    socket.emit('join_room', { roomCode: code, player: hostPlayer });
-    socket.emit('set_quiz', { roomCode: code, quiz });
+    socket.emit('join_room', { roomCode: activeRoomCode, player: hostPlayer });
+    socket.emit('set_quiz', { roomCode: activeRoomCode, quiz: savedQuiz });
 
-    navigate(`/lobby/${code}`);
+    navigate(`/lobby/${activeRoomCode}`);
   };
 
   return (
@@ -97,12 +126,14 @@ export const CreateQuizPage = () => {
 
         <div className="flex items-center justify-between mb-12">
           <div>
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter">Create Quiz</h2>
-            <p className="text-white/40">Build your custom battle arena</p>
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter">
+              {currentQuiz ? 'Edit Quiz' : 'Create Quiz'}
+            </h2>
+            <p className="text-white/40">{currentQuiz ? 'Update the quiz before the game starts' : 'Build your custom battle arena'}</p>
           </div>
           <Button size="lg" onClick={handleSave}>
             <Save size={20} />
-            Save & Host
+            {currentQuiz ? 'Save Changes' : 'Save & Host'}
           </Button>
         </div>
 

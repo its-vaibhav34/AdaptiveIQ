@@ -12,18 +12,22 @@ function createRoom(roomCode) {
     currentQuiz: null,
     currentQuestionIndex: 0,
     gameStartTime: null,
+    questionAnsweredPlayerIds: [],
   };
 }
 
 async function saveGameSession(room, gameDuration) {
   try {
+    const contestants = room.players.filter((p) => !p.isHost);
+    const scoringPlayers = contestants.length > 0 ? contestants : room.players;
+
     // Calculate winner
-    const winner = room.players.reduce((top, p) => 
+    const winner = scoringPlayers.reduce((top, p) => 
       (p.score > top.score ? p : top), 
-      room.players[0] || {}
+      scoringPlayers[0] || {}
     );
 
-    const playerResults = room.players.map((p) => ({
+    const playerResults = scoringPlayers.map((p) => ({
       userId: p.userId,
       odId: p.id,
       username: p.username,
@@ -103,8 +107,8 @@ export function registerGameHandlers(io, socket) {
 
     const room = rooms.get(roomCode);
 
-    // First player to join is the host
-    if (room.players.length === 0) {
+    // Prefer an explicit host flag, but fall back to the first player in the room.
+    if (player.isHost || room.players.length === 0) {
       room.hostId = player.id;
     }
 
@@ -121,7 +125,7 @@ export function registerGameHandlers(io, socket) {
         correctAnswers: 0,
         totalAttempted: 0,
         answers: [],
-        isHost: room.players.length === 0,
+        isHost: Boolean(player.isHost) || room.players.length === 0,
       });
     }
 
@@ -147,6 +151,7 @@ export function registerGameHandlers(io, socket) {
     room.status = 'starting';
     room.currentQuestionIndex = 0;
     room.gameStartTime = Date.now();
+    room.questionAnsweredPlayerIds = [];
     // Reset all player scores for a fresh game
     room.players.forEach((p) => { 
       p.score = 0; 
@@ -171,27 +176,63 @@ export function registerGameHandlers(io, socket) {
   // ── Submit Answer ────────────────────────────────────────────
   socket.on('submit_answer', ({ roomCode, playerId, selectedAnswer, correctAnswer, isCorrect, timeSpent, score }) => {
     const room = rooms.get(roomCode);
-    if (!room) return;
+    if (!room || room.status !== 'question') return;
 
     const player = room.players.find((p) => p.id === playerId);
-    if (player) {
-      player.score += Math.max(0, score || 0);
-      player.lastAnswerCorrect = isCorrect;
-      player.totalAttempted = (player.totalAttempted || 0) + 1;
-      
-      if (isCorrect) {
-        player.correctAnswers = (player.correctAnswers || 0) + 1;
-      }
+    if (player?.isHost) {
+      return;
+    }
 
-      // Store answer details for analytics
-      player.answers.push({
-        questionIndex: room.currentQuestionIndex,
-        selectedAnswer: selectedAnswer,
-        correctAnswer: correctAnswer,
-        isCorrect: isCorrect,
-        timeSpent: timeSpent || 0,
-        points: score || 0,
+    if (!player) return;
+
+    console.log(`✉️ submit_answer: room=${roomCode} player=${playerId} selected=${selectedAnswer} isCorrect=${isCorrect}`);
+
+    if (!room.questionAnsweredPlayerIds.includes(playerId)) {
+      room.questionAnsweredPlayerIds.push(playerId);
+    }
+
+    player.score += Math.max(0, score || 0);
+    player.lastAnswerCorrect = isCorrect;
+    player.totalAttempted = (player.totalAttempted || 0) + 1;
+    
+    if (isCorrect) {
+      player.correctAnswers = (player.correctAnswers || 0) + 1;
+    }
+
+    // Store answer details for analytics
+    player.answers.push({
+      questionIndex: room.currentQuestionIndex,
+      selectedAnswer: selectedAnswer,
+      correctAnswer: correctAnswer,
+      isCorrect: isCorrect,
+      timeSpent: timeSpent || 0,
+      points: score || 0,
+    });
+    // Log updated player for debugging (confirm lastAnswerCorrect is set)
+    try {
+      console.log('🔎 Updated player after submit:', {
+        id: player.id,
+        username: player.username,
+        lastAnswerCorrect: player.lastAnswerCorrect,
+        score: player.score,
       });
+    } catch (e) {
+      console.warn('Could not log player after submit', e.message);
+    }
+
+    const contestants = room.players.filter((p) => !p.isHost);
+    const allAnswered = contestants.length > 0 && contestants.every((contestant) => room.questionAnsweredPlayerIds.includes(contestant.id));
+
+    console.log(`ℹ️ answeredCount=${room.questionAnsweredPlayerIds.length} contestants=${contestants.length} allAnswered=${allAnswered}`);
+
+    if (allAnswered) {
+      room.status = 'leaderboard';
+      console.log(`🏁 All answered in room ${roomCode} — moving to leaderboard`);
+      try {
+        console.log('🔔 Emitting leaderboard — players lastAnswerCorrect:', room.players.map(p => ({ id: p.id, lastAnswerCorrect: p.lastAnswerCorrect })));
+      } catch (e) {
+        console.warn('Could not log players on leaderboard', e.message);
+      }
     }
 
     io.to(roomCode).emit('room_update', room);
@@ -202,6 +243,13 @@ export function registerGameHandlers(io, socket) {
     const room = rooms.get(roomCode);
     if (!room) return;
     room.status = 'leaderboard';
+    room.questionAnsweredPlayerIds = room.questionAnsweredPlayerIds || [];
+    console.log(`🟣 Host requested leaderboard in room ${roomCode}`);
+    try {
+      console.log('🔔 Host trigger — players lastAnswerCorrect:', room.players.map(p => ({ id: p.id, lastAnswerCorrect: p.lastAnswerCorrect })));
+    } catch (e) {
+      console.warn('Could not log players on host leaderboard request', e.message);
+    }
     io.to(roomCode).emit('room_update', room);
   });
 
@@ -215,6 +263,7 @@ export function registerGameHandlers(io, socket) {
     if (room.currentQuestionIndex < totalQuestions - 1) {
       room.currentQuestionIndex += 1;
       room.status = 'question';
+      room.questionAnsweredPlayerIds = [];
     } else {
       // Last question done → finish the game
       room.status = 'finished';

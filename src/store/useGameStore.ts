@@ -9,6 +9,16 @@ export type Player = {
   isHost: boolean;
   lastAnswerCorrect?: boolean;
   rank?: number;
+  correctAnswers?: number;
+  totalAttempted?: number;
+  answers?: {
+    questionIndex: number;
+    selectedAnswer: number;
+    correctAnswer: number;
+    isCorrect: boolean;
+    timeSpent: number;
+    points: number;
+  }[];
 };
 
 export type Question = {
@@ -20,6 +30,7 @@ export type Question = {
 };
 
 export type Quiz = {
+  _id?: string;
   id: string;
   title: string;
   category: string;
@@ -41,6 +52,7 @@ interface GameState {
   currentQuiz: Quiz | null;
   currentQuestionIndex: number;
   timer: number;
+  questionAnsweredPlayerIds: string[];
   
   // Actions
   setRoomCode: (code: string | null) => void;
@@ -49,6 +61,7 @@ interface GameState {
   setCurrentQuiz: (quiz: Quiz | null) => void;
   setCurrentQuestionIndex: (index: number) => void;
   setTimer: (time: number) => void;
+  setQuestionAnsweredPlayerIds: (playerIds: string[]) => void;
   addPlayer: (player: Player) => void;
   removePlayer: (playerId: string) => void;
   updatePlayerReady: (playerId: string, isReady: boolean) => void;
@@ -67,6 +80,7 @@ export const useGameStore = create<GameState>((set) => ({
   currentQuiz: null,
   currentQuestionIndex: 0,
   timer: 0,
+  questionAnsweredPlayerIds: [],
 
   setRoomCode: (code) => set({ roomCode: code }),
   setPlayers: (players) => set({ players }),
@@ -74,6 +88,7 @@ export const useGameStore = create<GameState>((set) => ({
   setCurrentQuiz: (quiz) => set({ currentQuiz: quiz }),
   setCurrentQuestionIndex: (index) => set({ currentQuestionIndex: index }),
   setTimer: (time) => set({ timer: time }),
+  setQuestionAnsweredPlayerIds: (playerIds) => set({ questionAnsweredPlayerIds: playerIds }),
   
   addPlayer: (player) => set((state) => ({ players: [...state.players, player] })),
   removePlayer: (playerId) => set((state) => ({ 
@@ -90,6 +105,7 @@ export const useGameStore = create<GameState>((set) => ({
     status: roomData.status,
     currentQuiz: roomData.currentQuiz,
     currentQuestionIndex: roomData.currentQuestionIndex,
+    questionAnsweredPlayerIds: roomData.questionAnsweredPlayerIds || [],
   }),
   resetGame: () => set({
     roomCode: null,
@@ -97,6 +113,7 @@ export const useGameStore = create<GameState>((set) => ({
     status: 'idle',
     currentQuiz: null,
     currentQuestionIndex: 0,
-    timer: 0
+    timer: 0,
+    questionAnsweredPlayerIds: [],
   }),
 }));

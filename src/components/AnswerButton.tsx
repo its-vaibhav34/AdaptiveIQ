@@ -9,6 +9,7 @@ interface AnswerButtonProps {
   isSelected?: boolean;
   isCorrect?: boolean;
   isWrong?: boolean;
+  className?: string;
 }
 
 export const AnswerButton = ({
@@ -19,6 +20,7 @@ export const AnswerButton = ({
   isSelected,
   isCorrect,
   isWrong,
+  className,
 }: AnswerButtonProps) => {
   const colors = [
     'bg-rose-500 hover:bg-rose-400 shadow-rose-500/20',
@@ -41,16 +43,17 @@ export const AnswerButton = ({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'relative flex items-center gap-6 p-6 rounded-3xl text-left transition-all duration-300 shadow-xl min-h-[100px]',
+        'relative flex items-center gap-4 md:gap-6 p-4 md:p-6 rounded-3xl text-left transition-all duration-300 shadow-xl min-h-[88px] md:min-h-[100px] w-full',
         colors[index % 4],
         isSelected && 'ring-4 ring-white ring-offset-4 ring-offset-black scale-105 z-10',
         isCorrect && 'ring-4 ring-emerald-400 ring-offset-4 ring-offset-black bg-emerald-500',
         isWrong && 'opacity-40 grayscale-[0.5]',
-        disabled && !isSelected && 'opacity-50 cursor-not-allowed'
+        disabled && !isSelected && 'opacity-50 cursor-not-allowed',
+        className
       )}
     >
-      <div className="flex-shrink-0 opacity-40">{shapes[index % 4]}</div>
-      <span className="text-xl font-bold text-white leading-tight">{text}</span>
+      <div className="flex-shrink-0 opacity-40 scale-90 md:scale-100">{shapes[index % 4]}</div>
+      <span className="text-base md:text-xl font-bold text-white leading-tight">{text}</span>
       
       {isCorrect && (
         <motion.div
