@@ -1,5 +1,8 @@
+import { getApiBase } from './config';
+
 export async function generateQuiz(topic: string, count: number, difficulty: string) {
-  const response = await fetch('/api/quizzes/generate', {
+  const url = `${getApiBase()}/quizzes/generate`;
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ topic, count, difficulty }),
