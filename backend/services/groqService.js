@@ -46,12 +46,44 @@ Rules:
 - Make questions educational, engaging, and factually accurate
 - Vary the difficulty slightly within the overall ${difficulty} range`;
 
-  const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 4096,
-    temperature: 0.75,
-  });
+  const candidateModels = [
+    process.env.GROQ_MODEL,
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'llama-3.3-70b-versatile',
+  ].filter(Boolean);
+  const uniqueModels = [...new Set(candidateModels)];
+
+  let response = null;
+  let lastError = null;
+
+  for (const model of uniqueModels) {
+    try {
+      response = await client.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        max_tokens: 4096,
+        temperature: 0.75,
+      });
+
+      if (response?.choices?.[0]?.message?.content) {
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      if (err?.status === 404 || err?.error?.code === 'model_not_found') {
+        console.warn(`⚠️ Groq model "${model}" not found or unauthorized. Trying fallback...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!response?.choices?.[0]?.message?.content) {
+    throw lastError || new Error('No response received from any Groq model');
+  }
 
   const raw = response.choices[0]?.message?.content || '';
 
