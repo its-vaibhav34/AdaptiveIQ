@@ -6,37 +6,54 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'https://adaptive-iq-ten.vercel.app',
   'https://adaptive-iq-u83e.vercel.app',
   'https://adaptiveiq.onrender.com',
 ];
 
-// Add CLIENT_URL from env if provided (for production deployments)
-if (process.env.CLIENT_URL) {
-  ALLOWED_ORIGINS.push(process.env.CLIENT_URL);
-}
+/**
+ * Check if origin is allowed by CORS policy.
+ * @param {string|undefined} origin
+ * @returns {boolean}
+ */
+export function isOriginAllowed(origin) {
+  // Allow requests with no origin header (Postman, curl, server-to-server)
+  if (!origin) return true;
 
-// Common frontend env var names used by hosting providers
-if (process.env.FRONTEND_URL) {
-  ALLOWED_ORIGINS.push(process.env.FRONTEND_URL);
-}
+  const normalized = origin.replace(/\/$/, '');
 
-if (process.env.VERCEL_URL) {
-  ALLOWED_ORIGINS.push(`https://${process.env.VERCEL_URL}`);
+  // Check predefined allowed origins list
+  if (ALLOWED_ORIGINS.includes(normalized)) return true;
+
+  // Check env vars (supports comma-separated origins)
+  const envOrigins = [
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    process.env.ALLOWED_ORIGINS,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  ]
+    .filter(Boolean)
+    .flatMap((val) => val.split(',').map((s) => s.trim().replace(/\/$/, '')));
+
+  if (envOrigins.includes(normalized)) return true;
+
+  // Allow all Vercel deployment URLs for AdaptiveIQ (production, preview branches, etc.)
+  if (/^https:\/\/adaptive-iq.*\.vercel\.app$/.test(normalized)) {
+    return true;
+  }
+
+  // Allow all localhost variations
+  if (normalized.startsWith('http://localhost:') || normalized.startsWith('http://127.0.0.1:')) {
+    return true;
+  }
+
+  return false;
 }
 
 export const corsMiddleware = cors({
   origin(origin, callback) {
-    // Allow requests with no origin header (Postman, curl, mobile apps)
-    if (!origin) return callback(null, true);
-
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
-    } else if (process.env.NODE_ENV === 'development') {
-      // In dev, allow all localhost variations
-      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-        return callback(null, true);
-      }
-      callback(new Error(`CORS: origin '${origin}' not allowed`));
     } else {
       callback(new Error(`CORS: origin '${origin}' not allowed`));
     }

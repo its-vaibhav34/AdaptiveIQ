@@ -10,6 +10,7 @@ import { Server } from 'socket.io';
 import { createApp } from './app.js';
 import { connectDB } from './config/database.js';
 import { registerGameHandlers } from './socket/gameHandlers.js';
+import { isOriginAllowed } from './middleware/cors.js';
 
 const PORT = process.env.PORT || 5001;
 
@@ -22,14 +23,13 @@ const io = new Server(httpServer, {
   path: '/socket.io',
   transports: ['websocket', 'polling'],
   cors: {
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-      process.env.CLIENT_URL,
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Socket.IO CORS: origin '${origin}' not allowed`));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
